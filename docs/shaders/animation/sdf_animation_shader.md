@@ -10,21 +10,34 @@
 
 
 - **Category:** Animation / SDF / Scene
-- **Author:** Wanzhang He
-- **Input Requirements:** iTime, iResolution
+- **Author:** Your Name
+- **Input Requirements:** iTime, iResolution, iMouse (optional), plus configurable animation parameters
 
 ---
 
 ## 🧠 Algorithm
 
-This shader is a procedural animation built using Signed Distance Functions (SDFs) and ray marching techniques. It visualizes a character-like model composed of primitive shapes such as spheres and cylinders.
+This shader implements a modular animation system based on Signed Distance Fields (SDFs). It is designed to support flexible and reusable animation logic for procedural objects.
 
-- **Movement logic:** Time-based rotation using sine/cosine functions and transformation matrices like `rotateZ()` and `rotateX()` are applied to simulate animated body parts.
-- **Procedural construction:** SDFs represent the skeleton's limbs. Boolean operations like union (`opU`) and subtraction (`opS`) merge components into a full animated structure.
-- **Ray marching:** The shader casts rays from a rotating camera to compute intersections with the scene geometry and generate shading via normals and lighting.
-- **Camera motion:** The camera orbits around the model over time for dynamic viewing.
+- **Animation Types:** There are 5 supported animation modes:
+  1. Translate
+  2. Orbit
+  3. Self Rotate
+  4. Pulse Scale
+  5. TIE Path (figure-8 with spin)
 
+- **Time Modulation Modes:** Time is modulated using one of the following:
+  - `t` (linear)
+  - `sin(t)` (oscillatory)
+  - `abs(sin(t))` (one-direction oscillation)
 
+- **Animation Control:** Each animation has a dedicated parameter set, e.g., direction and speed for translation, center and angular speed for orbit, etc.
+
+- **Matrix Composition:** Each transformation is computed as a 4x4 matrix, which is combined into a single `animationMatrix` and its inverse for raymarching.
+
+- **Raymarching:** Rays are transformed into the animated object space using the inverse of the animation matrix, enabling correct rendering of animated motion.
+
+- **Modularity:** The code is structured for extensibility and reusability, intended for integration with larger shader frameworks.
 ---
 
 ## 💻 Code
