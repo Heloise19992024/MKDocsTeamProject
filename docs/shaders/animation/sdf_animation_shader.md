@@ -1,14 +1,5 @@
 # 🧩 SDF Animation Shader
 
-<img src="images/sdf_animation_v3.png" alt="SDF Animation Shader" width="400" height="225">
-
-
-<video controls width="640" height="360">
-  <source src="videos/sdf_animation_v3.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
-
-
 - **Category:** Animation / SDF / Scene
 - **Author:** Wanzhang He
 ## 📥 Input Requirements
@@ -83,112 +74,62 @@ Each object's ray is transformed by the matrix before raymarching, enabling anim
 
 ## 💻 Code
 
-```glsl
-// =====================================================
-// File: sdf_animation_v3.glsl
-// Description: Modular animation system for SDF objects with multiple animation types.
-// Author: Wanzhang He
-// Version: v3.0
-// Date: 2025-06-30
-//
-// Features:
-// - Supports 5 animation types: Translate, Self Rotate, Orbit, Pulse Scale, TIE Path
-// - Uses animation matrices for easy combination of transformations
-// - Provides default parameters and functions to modify them for flexible control
-// - Time modulation modes: linear, sine, absolute sine
-// - Designed for easy integration into modular shader frameworks
-// =====================================================
+### 1. SDF Object Configuration
 
+```glsl
 // ===== SDF Variables =====
 #define SDF_COUNT 10
-// Object types: 0 = Sphere, 1 = RoundBox, 2 = Torus, 3 = Dolphin
 float _sdfTypeFloat[SDF_COUNT];
 vec3 _sdfPositionFloat[SDF_COUNT];
 vec3 _sdfSizeFloat[SDF_COUNT];
 float _sdfRadiusFloat[SDF_COUNT];
 
+```
+
+### 2. Animation Parameters
+
+```glsl
 // ===== Animation Variables =====
-int animationType = 1;        // 1 = Translate, 2 = Orbit, 3 = SelfRotate, 4 = PulseScale, 5 = TIEPath
-int timeMode = 1;             // 0 = linear, 1 = sin(t), 2 = abs(sin(t))
+int animationType = 1;
+int timeMode = 1;
 
-// === Parameter sets for animation
-vec4 translateParam = vec4(1.0, 0.0, 0.0, 2.0);     // xyz = direction, w = speed
-vec4 orbitParam     = vec4(0.0, 0.0, 0.0, 1.0);     // xyz = orbit center, w = orbit speed
-vec4 selfRotateParam = vec4(0.0, 1.0, 0.0, 1.5);    // xyz = axis, w = angular speed
-vec2 pulseParam     = vec2(3.0, 0.2);               // x = frequency, y = amplitude
+vec4 translateParam = vec4(1.0, 0.0, 0.0, 2.0);
+vec4 orbitParam     = vec4(0.0, 0.0, 0.0, 1.0);
+vec4 selfRotateParam = vec4(0.0, 1.0, 0.0, 1.5);
+vec2 pulseParam     = vec2(3.0, 0.2);
 
-// === Animation transform matrices 
-mat4 animationMatrix = mat4(1.0);         // Combined transform matrix for SDF
-mat4 inverseAnimationMatrix = mat4(1.0);  // Inverse matrix for raymarching
+mat4 animationMatrix = mat4(1.0);
+mat4 inverseAnimationMatrix = mat4(1.0);
 
-// ===== SDF objects =====
-void initSDFObjects() {
-    _sdfTypeFloat[0]     = 0.0;
-    _sdfPositionFloat[0] = vec3(0.0, 0.0, 0.0);
-    _sdfSizeFloat[0]     = vec3(0.0);
-    _sdfRadiusFloat[0]   = 1.0;
+```
 
-    _sdfTypeFloat[1]     = 1.0;
-    _sdfPositionFloat[1] = vec3(1.9, 0.0, 0.0);
-    _sdfSizeFloat[1]     = vec3(1.0);
-    _sdfRadiusFloat[1]   = 0.2;
-}
+### 3. Animation Parameter Setters
 
-
-// ===== SDF Animation =====
-// ===== Animation Parameters Setting =====
-// Default setting
-void initAnimationParams() {
-    // Set defaults only if you are not overriding via engine/editor
-    translateParam     = vec4(1.0, 0.0, 0.0, 1.5);      // Move along X, speed 1.5
-    orbitParam         = vec4(0.0, 0.0, 0.0, 1.0);      // Orbit around origin, speed 1.0
-    selfRotateParam    = vec4(0.0, 1.0, 0.0, 1.0);      // Y-axis spin, 1 rad/sec
-    pulseParam         = vec2(3.0, 0.2);                // Pulse with freq=3, amp=0.2
-    animationType      = 0;                             // Default: no animation
-    timeMode           = 0;                             // Default: linear
-}
-
+```glsl
 // Sets the translation animation parameters.
-// direction: Movement direction vector (x, y, z)
-// speed: Oscillation speed multiplier
 void setTranslateParam(vec3 direction, float speed) {
-    translateParam = vec4(direction, speed);
-}
-
 // Sets the orbit animation parameters.
-// center: Orbit center point (x, y, z)
-// orbitSpeed: Angular speed of orbit (in radians per second)
 void setOrbitParam(vec3 center, float orbitSpeed) {
-    orbitParam = vec4(center, orbitSpeed);
-}
-
 // Sets the self-rotation animation parameters.
-// axis: Axis of rotation (must be normalized)
-// angularSpeed: Speed of rotation around the axis (in radians per second)
 void setSelfRotateParam(vec3 axis, float angularSpeed) {
-    selfRotateParam = vec4(axis, angularSpeed);
-}
-
 // Sets the pulse-scale animation parameters.
-// frequency: Frequency of the pulsing scale oscillation
-// amplitude: Strength of the scale deformation
 void setPulseParam(float frequency, float amplitude) {
-    pulseParam = vec2(frequency, amplitude);
-}
+```
 
-// ===== Time modulation =====
-// Apply time modulation based on mode
-// mode = 0 → linear
-// mode = 1 → sin(t)
-// mode = 2 → abs(sin(t))
+### 4. Time Modulation Function
+
+```glsl
 float applyTimeMode(float t, int mode) {
     if (mode == 1) return sin(t);
     if (mode == 2) return abs(sin(t));
     return t;
 }
 
-// ==== 1. Translate ====
-// Moves the object back and forth along a direction with sinusoidal motion.
+```
+
+### 5. Animation Matrix Functions
+#### 5.1 Translate Animation 
+```glsl
 mat4 getTranslateMatrix(float t, int mode) {
     float modT = applyTimeMode(t, mode);
     vec3 offset = translateParam.xyz * sin(modT * translateParam.w);
@@ -200,9 +141,11 @@ mat4 getTranslateMatrix(float t, int mode) {
         offset.x, offset.y, offset.z, 1.0
     );
 }
+```
 
-// ==== 2. Orbit ====
-// Rotates the object around a center point on the Y axis.
+#### 5.3 Orbit Animation
+
+```glsl
 mat4 getOrbitMatrix(float t, int mode) {
     float modT = applyTimeMode(t, mode);
     float angle = modT * orbitParam.w;
@@ -232,9 +175,11 @@ mat4 getOrbitMatrix(float t, int mode) {
 
     return back * rotationY * toOrigin;
 }
+```
 
-// ==== 3. Self Rotate ====
-// Rotates the object around its own center using a custom axis.
+#### 5.3 Self-Rotate Animation
+
+```glsl
 mat4 getSelfRotateMatrix(float t, int mode) {
     float modT = applyTimeMode(t, mode);
     float angle = modT * selfRotateParam.w;
@@ -249,9 +194,11 @@ mat4 getSelfRotateMatrix(float t, int mode) {
         0.0,                   0.0,                 0.0,                 1.0
     );
 }
+```
 
-// ==== 4. Pulse Scale ====
-// Scales the object periodically using a sine wave.
+#### 5.4 Pulse Scale Animation
+
+```glsl
 mat4 getPulseScaleMatrix(float t, int mode) {
     float modT = applyTimeMode(t, mode);
     float scale = 1.0 + sin(modT * pulseParam.x) * pulseParam.y;
@@ -263,9 +210,11 @@ mat4 getPulseScaleMatrix(float t, int mode) {
         0.0,   0.0,   0.0,   1.0
     );
 }
+```
 
-// ==== 5. TIE Path ====
-// Moves the object along a figure-8 orbit, also spins slightly.
+#### 5.5 TIE Path Animation
+
+```glsl
 mat4 getTIEPathMatrix(float t, int mode) {
     float modT = applyTimeMode(t, mode);
     float x = cos(modT * 0.7);
@@ -289,9 +238,11 @@ mat4 getTIEPathMatrix(float t, int mode) {
 
     return translate * rotation;
 }
+```
 
-// ===== Dispatcher function: select animation type =====
-// Returns the final animation matrix based on the animation type and time modulation.
+### 6. Animation Dispatcher
+
+```glsl
 mat4 getAnimationMatrix(float t, int animationType, int timeMode) {
     if (animationType == 1) {
         return getTranslateMatrix(t, timeMode);   // Translate
@@ -310,7 +261,11 @@ mat4 getAnimationMatrix(float t, int animationType, int timeMode) {
     }
     return mat4(1.0); // Identity matrix if no animation
 }
-// Other Function
+```
+
+### 7. Raymarch Function
+
+```glsl
 float raymarch(vec3 ro, vec3 rd) {
     float t = 0.0;
     const float tMax = 100.0;
@@ -326,14 +281,11 @@ float raymarch(vec3 ro, vec3 rd) {
         if (dist < epsilon) {
             return t; // hit found, return distance
         }
+```
 
-        t += dist;
-        if (t > tMax) break;
-    }
-    return -1.0; // no hit
-}
-// Simple Example 1
-/*
+### 8. Example mainImage Function
+
+```glsl
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     // Normalize pixel coordinates (from 0 to 1)
     vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;
@@ -358,9 +310,6 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     } else {
         fragColor = vec4(0.0); // Background color
     }
-}
-*/
-
 ```
 
 ---
